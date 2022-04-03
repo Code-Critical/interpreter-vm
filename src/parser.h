@@ -23,6 +23,8 @@ typedef struct {
     char* cursor;
     int error;
 
+    int data_section_top;
+
     int symbol_table_top;
     struct symbol_table_entry* symbol_table;
     

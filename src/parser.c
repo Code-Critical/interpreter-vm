@@ -15,9 +15,9 @@ char operators[][3] = {
     "ldr", "str",                               // Memory
 };
 
-char registers[][4] = {
-    "$R00", "$R01", "$R02", "$R03", "$R04", "$R05", "$R06", "$R07", 
-    "$R08", "$R09", "$R10", "$R11", "$R12", "$R13", "$R14", "$R15"
+char registers[][3] = {
+    "$00", "$01", "$02", "$03", "$04", "$05", "$06", "$07", 
+    "$08", "$09", "$10", "$11", "$12", "$13", "$14", "$15"
 };
 
 int evalKeyword(token* tok, compilation_unit* compiler) {
@@ -50,7 +50,7 @@ int evalIdentifier(token* tok, compilation_unit* compiler) {
     // consider using hashtables
     if (tok->symbol[0] == '$') {
         for (int idx = 0; idx < sizeof(registers) / sizeof(registers[0]); idx++) {
-            if (!strncmp(tok->symbol, registers[idx], 4)) {
+            if (!strncmp(tok->symbol, registers[idx], sizeof(registers[0]))) {
                 return idx;
             }
         }
@@ -86,11 +86,17 @@ int evalLiteral(token* tok, compilation_unit* compiler) {
     return value;
 }
 
+static inline void rewindCursor(token* tok, compilation_unit* compiler) {
+    compiler->cursor = tok->symbol;
+}
+
 compilation_unit compileFromSource(char* source) {
     // No preprocessing, all symbols are directly converted to bytecode without intermediate steps
     compilation_unit compiler = {
         .cursor = source,
         .error = 0,
+
+        .data_section_top = 0,
 
         .symbol_table_top = 0,
         .symbol_table = malloc(sizeof(struct symbol_table_entry) * 256),
@@ -105,15 +111,23 @@ compilation_unit compileFromSource(char* source) {
         printf("%.*s\n", next.length, next.symbol);
 
         if (next.type == IDENTIFIER) {
-            token keyword = getNextToken(&compiler.cursor);
-            token literal = getNextToken(&compiler.cursor);
+            // Identifier is being used to mark instruction address
+            token token1 = getNextToken(&compiler.cursor);
+            if ((token1.type == OPERATOR)) {
+                int identifier = evalIdentifier(&next, &compiler);
 
-            if ((keyword.type == KEYWORD) && (literal.type == LITERAL)) {
-                int identifier_idx = evalIdentifier(&next, &compiler);
-                int keyword_idx = evalKeyword(&keyword, &compiler);
-                int literal_idx = evalLiteral(&literal, &compiler);
+                compiler.symbol_table[identifier].address = compiler.executable_top;
+                
+                rewindCursor(&token1, &compiler);
+                continue;
+            }
 
-                printf("%d, %d, %d\n", identifier_idx, keyword_idx, literal_idx);
+            // Identifier is being used as a variable declaration
+            token token2 = getNextToken(&compiler.cursor);
+            if ((token1.type == KEYWORD) && (token2.type == LITERAL)) {
+                int identifier = evalIdentifier(&next, &compiler);
+                int keyword = evalKeyword(&token1, &compiler);
+                int literal = evalLiteral(&token2, &compiler);
 
                 // Generate instructions to push literal onto stack
                 compiler.executable[compiler.executable_top++] = encode(
@@ -121,7 +135,7 @@ compilation_unit compileFromSource(char* source) {
                     REG_RESERVED, 
                     REG_ZERO, 
                     REG_ZERO, 
-                    literal_idx
+                    literal
                 );
                 compiler.executable[compiler.executable_top++] = encode(
                     OP_STR, 
@@ -137,24 +151,55 @@ compilation_unit compileFromSource(char* source) {
                     REG_ZERO, 
                     1
                 );
+
+                compiler.symbol_table[identifier].address = compiler.data_section_top++;
+
+                continue;
+            }
+            
+        } else if (next.type == OPERATOR) {
+            token token1 = getNextToken(&compiler.cursor);
+            token token2 = getNextToken(&compiler.cursor);
+            token token3 = getNextToken(&compiler.cursor);
+            token token4 = getNextToken(&compiler.cursor);
+            
+            if (
+                (token1.type == IDENTIFIER) && 
+                (token2.type == IDENTIFIER) &&
+                (token3.type == IDENTIFIER)
+            ) {
+                int operator = evalOperator(&next, &compiler);
+                int register_a = evalIdentifier(&token1, &compiler);
+                int register_b = evalIdentifier(&token2, &compiler);
+                int register_c = evalIdentifier(&token3, &compiler);
+                int literal = 0;
+
+                if (token4.type == LITERAL) {
+                    literal = evalLiteral(&token4, &compiler);
+                } else if (token4.type == IDENTIFIER) {
+                    literal = compiler.symbol_table[evalIdentifier(&token4, &compiler)].address;
+                }
+                          
+                compiler.executable[compiler.executable_top++] = encode(
+                    operator, 
+                    register_a, 
+                    register_b, 
+                    register_c, 
+                    literal
+                );
+                
+                continue;
             }
         }
 
         if (next.type == TERMINATOR || next.type == ERROR) {
+
             break;
         }
 
     } while(!compiler.error);
 
-    for (int i = 0; i < compiler.symbol_table_top; i++) {
-        printf("%d: %s = %d\n", i, compiler.symbol_table[i].symbol, compiler.symbol_table[i].address);
-    }
-    
-    printf("\n");
-
-    for (int i = 0; i < compiler.executable_top; i++) {
-        printf("%d: 0x%.8X\n", i, compiler.executable[i]);
-    }
+    printf("%d\n", compiler.error);
 
     return compiler;
 }

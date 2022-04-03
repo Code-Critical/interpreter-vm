@@ -23,19 +23,31 @@ void printMemory(int memory[]) {
 int execute(bytecode program[]);
 
 char source[] = 
-"@var .word 1234            "
-"@sexy .word 69             "
+"@var .word 1234                "
+"@sexy .word 69                 "
 
-"ldr $1 @sexy               "
+"ldr $01 $00 $00 @sexy          "
 
-"@loop                      "
-"add $2 $2 $0 1             "
-"jle $2 $1 $0 @loop         "
-"str $2 @var                ";
+"@loop                          "
+"add $02 $02 $00 1              "
+"jlt $02 $01 $00 @loop          "
+"str $02 $00 $00 @var           ";
 
 int main() {
-    compilation_unit peeb = compileFromSource(source);
-    execute(peeb.executable);
+    compilation_unit compiler = compileFromSource(source);
+
+
+    for (int i = 0; i < compiler.symbol_table_top; i++) {
+        printf("%d: %s = %d\n", i, compiler.symbol_table[i].symbol, compiler.symbol_table[i].address);
+    }
+    
+    printf("\n");
+
+    for (int i = 0; i < compiler.executable_top; i++) {
+        printf("%d: 0x%.8X\n", i, compiler.executable[i]);
+    }
+
+    execute(compiler.executable);
 
     return 0;
 }
@@ -50,10 +62,12 @@ int execute(bytecode program[]) {
     int reg_c = 0;
     int immediate = 0;
 
-    while (registers[REG_COUNTER] < 8) {
+    while (registers[REG_COUNTER] < 10) {
         bytecode code = program[registers[REG_COUNTER]++];
 
         decode(code, opcode, reg_a, reg_b, reg_c, immediate);
+
+        //printf("%d, %d, %d, %d, %d\n", opcode, reg_a, reg_b, reg_c, immediate);
 
         switch (opcode) {
         case OP_ADD:
@@ -118,7 +132,7 @@ int execute(bytecode program[]) {
             break;
         }
 
-        printRegisters(registers);
+        //printRegisters(registers);
     }
 
     printMemory(memory);
