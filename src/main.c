@@ -2,7 +2,7 @@
 #include <stdarg.h>
 
 #include "bytecode.h"
-
+#include "parser.h"
 
 // bytecode32b: |OPCD|REGA|REGB|REGC|XXXX|XXXX|XXXX|XXXX|
 
@@ -13,15 +13,36 @@ void printRegisters(int registers[]) {
     printf("\n");
 }
 
-int program[] = {
-    encode(OP_ADD, 0x1, 0x0, 0x0, 30),
-    encode(OP_ADD, 0x2, 0x2, 0x0, 1),
-    encode(OP_JLT, 0x2, 0x1, 0x0, 1)
-};
+void printMemory(int memory[]) {
+    for (int i = 0; i < 10; i++) {
+        printf("stack[%d] = %d\n", i, memory[i]);
+    }
+    printf("\n");
+}
+
+int execute(bytecode program[]);
+
+char source[] = 
+"@var .word 1234            "
+"@sexy .word 69             "
+
+"ldr $1 @sexy               "
+
+"@loop                      "
+"add $2 $2 $0 1             "
+"jle $2 $1 $0 @loop         "
+"str $2 @var                ";
 
 int main() {
+    compilation_unit peeb = compileFromSource(source);
+    execute(peeb.executable);
+
+    return 0;
+}
+
+int execute(bytecode program[]) {
     int registers[16] = {0};
-    char memory[] = {0};
+    int memory[20] = {0};
 
     int opcode = 0;
     int reg_a = 0;
@@ -29,8 +50,8 @@ int main() {
     int reg_c = 0;
     int immediate = 0;
 
-    while (registers[REG_COUNTER] < 3) {
-        int code = program[registers[REG_COUNTER]++];
+    while (registers[REG_COUNTER] < 8) {
+        bytecode code = program[registers[REG_COUNTER]++];
 
         decode(code, opcode, reg_a, reg_b, reg_c, immediate);
 
@@ -89,14 +110,18 @@ int main() {
                 registers[REG_COUNTER] = (registers[reg_c] + immediate);
             }
             break;
+        case OP_STR:
+            memory[registers[reg_c] + immediate] = registers[reg_a];
+            break;
         case OP_LDR:
-            registers[reg_a] = memory[(registers[reg_c] + immediate)];  
+            registers[reg_a] = memory[registers[reg_c] + immediate];  
             break;
         }
 
         printRegisters(registers);
     }
 
+    printMemory(memory);
 
     return 0;
 }

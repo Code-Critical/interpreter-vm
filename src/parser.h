@@ -23,13 +23,12 @@ typedef struct {
     char* cursor;
     int error;
 
-    int n_symbols;
+    int symbol_table_top;
     struct symbol_table_entry* symbol_table;
-} compilation_unit;
-
-struct binary_executable {
     
-};
+    int executable_top;
+    bytecode* executable;
+} compilation_unit;
 
 compilation_unit compileFromSource(char* source);
 

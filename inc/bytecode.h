@@ -68,7 +68,7 @@ typedef enum {
     REG_EIGHT       = 0x8,
     REG_NINE        = 0x9,
     REG_TEN         = 0xA,
-    REG_ELEVEN      = 0xB,
+    REG_RESERVED    = 0xB,
     REG_STACK       = 0xC,
     REG_FRAME       = 0xD,
     REG_RETURN      = 0xE,

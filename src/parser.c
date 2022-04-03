@@ -56,14 +56,14 @@ int evalIdentifier(token* tok, compilation_unit* compiler) {
         }
     } else if (tok->symbol[0] == '@') {
         // Search for symbol in symbol_table, if found return value
-        for (int i = 0; i < compiler->n_symbols; i++) {
-            if (!strncmp(tok->symbol, compiler->symbol_table[i].symbol, tok->length)) {
-                return compiler->symbol_table[i].address;
+        for (int idx = 0; idx < compiler->symbol_table_top; idx++) {
+            if (!strncmp(tok->symbol, compiler->symbol_table[idx].symbol, tok->length)) {
+                return idx;
             }
         }
         // If symbol not found, create one and return value
-        strncpy(compiler->symbol_table[compiler->n_symbols].symbol, tok->symbol, tok->length);
-        return compiler->n_symbols++;
+        strncpy(compiler->symbol_table[compiler->symbol_table_top].symbol, tok->symbol, tok->length);
+        return compiler->symbol_table_top++;
     }
 
     compiler->error = ERROR_UNKNOWN_SYMBOL;
@@ -73,8 +73,8 @@ int evalIdentifier(token* tok, compilation_unit* compiler) {
 int evalLiteral(token* tok, compilation_unit* compiler) {
     unsigned int value = 0;
 
-    for (int i = 0; i < tok->length; i++) {
-        unsigned int temp = value * 10 + (tok->symbol[i] - '0');
+    for (int idx = 0; idx < tok->length; idx++) {
+        unsigned int temp = value * 10 + (tok->symbol[idx] - '0');
         // Overflow test
         if (temp > value) {
             value = temp;
@@ -87,13 +87,74 @@ int evalLiteral(token* tok, compilation_unit* compiler) {
 }
 
 compilation_unit compileFromSource(char* source) {
+    // No preprocessing, all symbols are directly converted to bytecode without intermediate steps
     compilation_unit compiler = {
         .cursor = source,
         .error = 0,
 
-        .n_symbols = 0,
-        .symbol_table = malloc(sizeof(struct symbol_table_entry) * 256)
+        .symbol_table_top = 0,
+        .symbol_table = malloc(sizeof(struct symbol_table_entry) * 256),
+
+        .executable_top = 0,
+        .executable = malloc(sizeof(bytecode) * 256)
     };
+
+    do {
+        token next = getNextToken(&compiler.cursor);
+        
+        printf("%.*s\n", next.length, next.symbol);
+
+        if (next.type == IDENTIFIER) {
+            token keyword = getNextToken(&compiler.cursor);
+            token literal = getNextToken(&compiler.cursor);
+
+            if ((keyword.type == KEYWORD) && (literal.type == LITERAL)) {
+                int identifier_idx = evalIdentifier(&next, &compiler);
+                int keyword_idx = evalKeyword(&keyword, &compiler);
+                int literal_idx = evalLiteral(&literal, &compiler);
+
+                printf("%d, %d, %d\n", identifier_idx, keyword_idx, literal_idx);
+
+                // Generate instructions to push literal onto stack
+                compiler.executable[compiler.executable_top++] = encode(
+                    OP_ORR, 
+                    REG_RESERVED, 
+                    REG_ZERO, 
+                    REG_ZERO, 
+                    literal_idx
+                );
+                compiler.executable[compiler.executable_top++] = encode(
+                    OP_STR, 
+                    REG_RESERVED, 
+                    REG_ZERO, 
+                    REG_STACK, 
+                    0
+                );
+                compiler.executable[compiler.executable_top++] = encode(
+                    OP_ADD, 
+                    REG_STACK, 
+                    REG_STACK, 
+                    REG_ZERO, 
+                    1
+                );
+            }
+        }
+
+        if (next.type == TERMINATOR || next.type == ERROR) {
+            break;
+        }
+
+    } while(!compiler.error);
+
+    for (int i = 0; i < compiler.symbol_table_top; i++) {
+        printf("%d: %s = %d\n", i, compiler.symbol_table[i].symbol, compiler.symbol_table[i].address);
+    }
+    
+    printf("\n");
+
+    for (int i = 0; i < compiler.executable_top; i++) {
+        printf("%d: 0x%.8X\n", i, compiler.executable[i]);
+    }
 
     return compiler;
 }
