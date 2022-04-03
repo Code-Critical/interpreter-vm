@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "regex.h": "c",
+        "stdarg.h": "c",
+        "parser.h": "c",
+        "lexer.h": "c",
+        "future": "c",
+        "system_error": "c",
+        "bytecode.h": "c"
+    }
+}
