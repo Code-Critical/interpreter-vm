@@ -11,4 +11,4 @@ all: $(API)
 	$(CC) $(addprefix $(BUILD)/, $^) -o $(BINARY)/con
 
 $(API):
-	$(CC) -c $(SOURCE)/$(basename $@).c -o $(BUILD)/$@ -I $(INCLUDE) -I $(SOURCE)
+	$(CC) -c -g -O3 $(SOURCE)/$(basename $@).c -o $(BUILD)/$@ -I $(INCLUDE) -I $(SOURCE)
