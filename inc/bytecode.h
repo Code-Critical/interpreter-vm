@@ -6,16 +6,6 @@
 
 |OPCD|REGA|REGB|REGC|XXXX|XXXX|XXXX|XXXX|
 
-.text
-    ldr $r01 $r00 $r00 0xFFFFABCD
-
-(!) Since 0xFFFFABCD > 0xFFFF, perform staged immediate encoding
-
-.text
-    orr $r01 $r00 $r00 0xFFFF
-    shl $r01 $r00 $r00 0x4
-    ldr $r01 $r00 $r01 0xABCD
-
 */
 
 typedef unsigned int bytecode;

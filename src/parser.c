@@ -4,7 +4,6 @@
 // TODO: convert lookup tables to hashtables for more efficient compilation
 
 char keywords[][5] = {
-    ".data", ".text", // Compiler section modes
     ".word", ".byte" // Identifier types
 };
 
@@ -28,7 +27,6 @@ int evalKeyword(token* tok, compilation_unit* compiler) {
             }
         }
     }
-
     compiler->error = ERROR_UNKNOWN_SYMBOL;
     return 0;    
 }
@@ -41,13 +39,12 @@ int evalOperator(token* tok, compilation_unit* compiler) {
             }
         }
     }
-    
     compiler->error = ERROR_UNKNOWN_SYMBOL;
     return 0;
 }
 
 int evalIdentifier(token* tok, compilation_unit* compiler) {
-    // consider using hashtables
+    // consider using hashtables yes yes
     if (tok->symbol[0] == '$') {
         for (int idx = 0; idx < sizeof(registers) / sizeof(registers[0]); idx++) {
             if (!strncmp(tok->symbol, registers[idx], sizeof(registers[0]))) {
@@ -55,13 +52,13 @@ int evalIdentifier(token* tok, compilation_unit* compiler) {
             }
         }
     } else if (tok->symbol[0] == '@') {
-        // Search for symbol in symbol_table, if found return value
+        // Search for symbol in symbol_table, if found return index
         for (int idx = 0; idx < compiler->symbol_table_top; idx++) {
             if (!strncmp(tok->symbol, compiler->symbol_table[idx].symbol, tok->length)) {
                 return idx;
             }
         }
-        // If symbol not found, create one and return value
+        // If symbol not found, create one and return index
         strncpy(compiler->symbol_table[compiler->symbol_table_top].symbol, tok->symbol, tok->length);
         return compiler->symbol_table_top++;
     }
@@ -108,26 +105,26 @@ compilation_unit compileFromSource(char* source) {
     do {
         token next = getNextToken(&compiler.cursor);
         
-        printf("%.*s\n", next.length, next.symbol);
+        if (next.type == TERMINATOR || next.type == ERROR) {
+            printf("ERROR YES YES\n");
+            break;
+        }
 
         if (next.type == IDENTIFIER) {
-            // Identifier is being used to mark instruction address
             token token1 = getNextToken(&compiler.cursor);
-            if ((token1.type == OPERATOR)) {
+
+            if (token1.type == OPERATOR) {
+                // Identifier is being used to mark instruction address
                 int identifier = evalIdentifier(&next, &compiler);
 
                 compiler.symbol_table[identifier].address = compiler.executable_top;
                 
                 rewindCursor(&token1, &compiler);
                 continue;
-            }
-
-            // Identifier is being used as a variable declaration
-            token token2 = getNextToken(&compiler.cursor);
-            if ((token1.type == KEYWORD) && (token2.type == LITERAL)) {
+            } else if (token1.type == LITERAL) {
+                // Identifier is being used as a variable declaration
                 int identifier = evalIdentifier(&next, &compiler);
-                int keyword = evalKeyword(&token1, &compiler);
-                int literal = evalLiteral(&token2, &compiler);
+                int literal = evalLiteral(&token1, &compiler);
 
                 // Generate instructions to push literal onto stack
                 compiler.executable[compiler.executable_top++] = encode(
@@ -192,14 +189,7 @@ compilation_unit compileFromSource(char* source) {
             }
         }
 
-        if (next.type == TERMINATOR || next.type == ERROR) {
-
-            break;
-        }
-
     } while(!compiler.error);
-
-    printf("%d\n", compiler.error);
 
     return compiler;
 }

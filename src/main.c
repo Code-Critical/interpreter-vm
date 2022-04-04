@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <time.h>
 
 #include "bytecode.h"
 #include "parser.h"
@@ -22,32 +23,55 @@ void printMemory(int memory[]) {
 
 int execute(bytecode program[]);
 
-char source[] = 
-"@var .word 1234                "
-"@sexy .word 69                 "
+int ioReadFile(const char* path, char* buffer[], int* length) {
+    FILE* file = fopen(path, "r");
 
-"ldr $01 $00 $00 @sexy          "
+    if (file == NULL) {
+        return -1;
+    }
 
-"@loop                          "
-"add $02 $02 $00 1              "
-"jlt $02 $01 $00 @loop          "
-"str $02 $00 $00 @var           ";
+    fseek(file, 0L, SEEK_END);
+    long __length = ftell(file) * sizeof(char);
+    fseek(file, 0L, SEEK_SET);
 
-int main() {
+    char* __buffer = (char*)malloc(__length);
+    fread((void*)__buffer, 1, __length, file);
+
+    *buffer = __buffer;
+    *length = __length;
+
+    return 0;
+}
+
+int main(int argc, char* argv[]) {
+    char* source; 
+    int length; 
+    int err = ioReadFile(argv[1], &source, &length);
+
+    if (err) {
+        return -1;
+    }
+
     compilation_unit compiler = compileFromSource(source);
-
 
     for (int i = 0; i < compiler.symbol_table_top; i++) {
         printf("%d: %s = %d\n", i, compiler.symbol_table[i].symbol, compiler.symbol_table[i].address);
     }
-    
     printf("\n");
 
     for (int i = 0; i < compiler.executable_top; i++) {
         printf("%d: 0x%.8X\n", i, compiler.executable[i]);
     }
+    printf("\n");
 
-    execute(compiler.executable);
+    clock_t tb_start = clock();
+    int n = execute(compiler.executable);
+    clock_t tb_end = clock();
+
+    double latency = (double)(tb_end - tb_start) / CLOCKS_PER_SEC;
+
+    printf("Run in %lf seconds.\n", latency);
+    printf("Executed %lf instructions per second.\n", n / latency);
 
     return 0;
 }
@@ -62,8 +86,11 @@ int execute(bytecode program[]) {
     int reg_c = 0;
     int immediate = 0;
 
-    while (registers[REG_COUNTER] < 10) {
+    int instruction_n = 0;
+
+    while (registers[REG_COUNTER] < 20) {
         bytecode code = program[registers[REG_COUNTER]++];
+        instruction_n++;
 
         decode(code, opcode, reg_a, reg_b, reg_c, immediate);
 
@@ -131,11 +158,9 @@ int execute(bytecode program[]) {
             registers[reg_a] = memory[registers[reg_c] + immediate];  
             break;
         }
-
-        //printRegisters(registers);
     }
 
     printMemory(memory);
 
-    return 0;
+    return instruction_n;
 }

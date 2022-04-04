@@ -6,6 +6,11 @@
         "lexer.h": "c",
         "future": "c",
         "system_error": "c",
-        "bytecode.h": "c"
+        "bytecode.h": "c",
+        "time.h": "c",
+        "chrono": "c",
+        "condition_variable": "c",
+        "ctime": "c",
+        "mutex": "c"
     }
 }

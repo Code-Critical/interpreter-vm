@@ -1,8 +1,6 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include <stdio.h>
-
 typedef enum {
     KEYWORD,
     IDENTIFIER,
